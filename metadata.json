@@ -1,0 +1,5 @@
+{
+  "name": "Mass Image Processor Pro",
+  "description": "A high-performance client-side tool for batch resizing images into multiple social-ready formats with automatic padding and white backgrounds.",
+  "requestFramePermissions": []
+}
