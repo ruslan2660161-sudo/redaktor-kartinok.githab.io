@@ -7,13 +7,15 @@ import { PADDING_RATIO, JPG_QUALITY } from '../constants';
  */
 export async function processImageFile(
   file: File,
-  formats: ImageFormat[]
+  formats: ImageFormat[],
+  applyShadow: boolean = false,
+  backgroundColor: string = '#FFFFFF'
 ): Promise<ProcessedResult[]> {
   const image = await loadImage(file);
   const results: ProcessedResult[] = [];
 
   for (const format of formats) {
-    const blob = await renderToCanvas(image, format);
+    const blob = await renderToCanvas(image, format, applyShadow, backgroundColor);
     const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
     results.push({
       formatId: format.id,
@@ -31,16 +33,24 @@ export async function processImageFile(
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      resolve(img);
+      URL.revokeObjectURL(img.src);
+    };
     img.onerror = reject;
     img.src = URL.createObjectURL(file);
   });
 }
 
 /**
- * Renders the image to a white-background canvas with padding and centering
+ * Renders the image to a canvas with custom background, padding and centering
  */
-function renderToCanvas(img: HTMLImageElement, format: ImageFormat): Promise<Blob> {
+function renderToCanvas(
+  img: HTMLImageElement, 
+  format: ImageFormat, 
+  applyShadow: boolean, 
+  backgroundColor: string
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     canvas.width = format.width;
@@ -52,11 +62,11 @@ function renderToCanvas(img: HTMLImageElement, format: ImageFormat): Promise<Blo
       return;
     }
 
-    // 1. Fill background white
-    ctx.fillStyle = '#FFFFFF';
+    // 1. Fill background with selected color
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Calculate drawing area with padding (85% of smaller side)
+    // 2. Calculate drawing area with padding
     const paddingX = format.width * PADDING_RATIO;
     const paddingY = format.height * PADDING_RATIO;
     const availableWidth = format.width - (paddingX * 2);
@@ -71,12 +81,24 @@ function renderToCanvas(img: HTMLImageElement, format: ImageFormat): Promise<Blo
     const offsetX = (format.width - drawWidth) / 2;
     const offsetY = (format.height - drawHeight) / 2;
 
-    // 5. Draw (equivalent to high quality / Lanczos in many modern browsers)
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
-    // 6. Export as JPG
+    // 5. Draw Shadow if enabled
+    if (applyShadow) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 10;
+      ctx.shadowOffsetY = -10; // Up is negative
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      ctx.restore();
+    } else {
+      // 6. Draw Image without shadow
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    }
+
+    // 7. Export as JPG
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);

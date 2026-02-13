@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  FileArchive
+  FileArchive,
+  Layers,
+  Palette
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { DEFAULT_FORMATS } from './constants';
@@ -20,6 +22,8 @@ import { processImageFile } from './utils/imageProcessor';
 const App: React.FC = () => {
   const [files, setFiles] = useState<ProcessingFile[]>([]);
   const [formats, setFormats] = useState<ImageFormat[]>(DEFAULT_FORMATS);
+  const [applyShadow, setApplyShadow] = useState(false);
+  const [bgColor, setBgColor] = useState('#FFFFFF');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +45,11 @@ const App: React.FC = () => {
   };
 
   const removeFile = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
+    setFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === id);
+      if (fileToRemove) URL.revokeObjectURL(fileToRemove.previewUrl);
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   const addFormat = () => {
@@ -77,7 +85,7 @@ const App: React.FC = () => {
       try {
         setFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'processing', progress: 50 } : f));
         
-        const results = await processImageFile(item.file, formats);
+        const results = await processImageFile(item.file, formats, applyShadow, bgColor);
         
         setFiles(prev => prev.map(f => f.id === item.id ? { 
           ...f, 
@@ -86,6 +94,7 @@ const App: React.FC = () => {
           results 
         } : f));
       } catch (err) {
+        console.error(err);
         setFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'error' } : f));
       }
     }
@@ -116,6 +125,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // --- Render Helpers ---
@@ -128,8 +138,8 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Mass Image Processor</h1>
-          <p className="text-slate-500 mt-1">Batch resize and export images with white padding locally.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Ресайзы для баннеров ЧГ</h1>
+          <p className="text-slate-500 mt-1">Массово делаем ресайзы для баннеров и книг</p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -172,7 +182,7 @@ const App: React.FC = () => {
               </button>
             </div>
             
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 mb-6">
               {formats.map((format) => (
                 <div key={format.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100 group">
                   <input 
@@ -205,8 +215,57 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Effects & Background */}
+            <div className="pt-4 border-t border-slate-100 space-y-6">
+              
+              {/* Background Color */}
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Palette size={12} />
+                  Background
+                </h3>
+                <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shadow-inner">
+                    <input 
+                      type="color" 
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value.toUpperCase())}
+                      className="absolute -inset-2 w-[200%] h-[200%] cursor-pointer border-none p-0"
+                    />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value.toUpperCase())}
+                    className="flex-1 min-w-0 bg-transparent text-sm font-mono font-medium outline-none text-slate-700"
+                    placeholder="#FFFFFF"
+                  />
+                </div>
+              </div>
+
+              {/* Shadow Toggle */}
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Effects</h3>
+                <label className="flex items-center gap-3 p-3 bg-indigo-50/50 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors border border-indigo-100/50">
+                  <input 
+                    type="checkbox" 
+                    checked={applyShadow}
+                    onChange={(e) => setApplyShadow(e.target.checked)}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Layers size={14} className="text-indigo-500" />
+                      Добавить тень
+                    </span>
+                    <span className="text-[10px] text-slate-500 leading-tight">Drop shadow (20px blur, 40% op)</span>
+                  </div>
+                </label>
+              </div>
+            </div>
             
-            <p className="mt-4 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+            <p className="mt-6 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
               Local Processing: ON
             </p>
           </div>
@@ -271,7 +330,10 @@ const App: React.FC = () => {
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <span className="font-semibold text-slate-700">Queue ({files.length} files)</span>
                 <button 
-                  onClick={() => setFiles([])}
+                  onClick={() => {
+                    files.forEach(f => URL.revokeObjectURL(f.previewUrl));
+                    setFiles([]);
+                  }}
                   className="text-sm text-slate-500 hover:text-rose-600 transition-colors"
                 >
                   Clear All
@@ -320,7 +382,7 @@ const App: React.FC = () => {
       {/* Footer Info */}
       <footer className="mt-20 text-center py-8 border-t border-slate-200">
         <p className="text-slate-400 text-sm">
-          &copy; {new Date().getFullYear()} Mass Image Processor Pro. 100% Client-Side. High Privacy. No Server Uploads.
+          &copy; {new Date().getFullYear()} Ресайзы для баннеров ЧГ. 100% Client-Side. High Privacy. No Server Uploads.
         </p>
       </footer>
     </div>
