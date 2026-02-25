@@ -16,13 +16,20 @@ import {
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { DEFAULT_FORMATS } from './constants';
-import { ImageFormat, ProcessingFile, ProcessedResult } from './types';
+import { ImageFormat, ProcessingFile, ProcessedResult, ShadowConfig } from './types';
 import { processImageFile } from './utils/imageProcessor';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<ProcessingFile[]>([]);
   const [formats, setFormats] = useState<ImageFormat[]>(DEFAULT_FORMATS);
   const [applyShadow, setApplyShadow] = useState(false);
+  const [shadowConfig, setShadowConfig] = useState<ShadowConfig>({
+    blur: 20,
+    offsetX: 10,
+    offsetY: -10,
+    opacity: 0.4,
+    color: '#000000'
+  });
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -85,7 +92,7 @@ const App: React.FC = () => {
       try {
         setFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'processing', progress: 50 } : f));
         
-        const results = await processImageFile(item.file, formats, applyShadow, bgColor);
+        const results = await processImageFile(item.file, formats, applyShadow, bgColor, shadowConfig);
         
         setFiles(prev => prev.map(f => f.id === item.id ? { 
           ...f, 
@@ -259,9 +266,76 @@ const App: React.FC = () => {
                       <Layers size={14} className="text-indigo-500" />
                       Добавить тень
                     </span>
-                    <span className="text-[10px] text-slate-500 leading-tight">Drop shadow (20px blur, 40% op)</span>
+                    <span className="text-[10px] text-slate-500 leading-tight">Customizable drop shadow</span>
                   </div>
                 </label>
+
+                {applyShadow && (
+                  <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Blur</label>
+                        <input 
+                          type="number" 
+                          value={shadowConfig.blur}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, blur: parseInt(e.target.value) || 0 }))}
+                          className="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Opacity</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          min="0"
+                          max="1"
+                          value={shadowConfig.opacity}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, opacity: parseFloat(e.target.value) || 0 }))}
+                          className="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Offset X</label>
+                        <input 
+                          type="number" 
+                          value={shadowConfig.offsetX}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, offsetX: parseInt(e.target.value) || 0 }))}
+                          className="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Offset Y</label>
+                        <input 
+                          type="number" 
+                          value={shadowConfig.offsetY}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, offsetY: parseInt(e.target.value) || 0 }))}
+                          className="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Shadow Color</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={shadowConfig.color}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, color: e.target.value }))}
+                          className="w-8 h-8 rounded cursor-pointer border-none p-0"
+                        />
+                        <input 
+                          type="text" 
+                          value={shadowConfig.color}
+                          onChange={(e) => setShadowConfig(prev => ({ ...prev, color: e.target.value }))}
+                          className="flex-1 min-w-0 bg-transparent text-xs font-mono outline-none text-slate-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             

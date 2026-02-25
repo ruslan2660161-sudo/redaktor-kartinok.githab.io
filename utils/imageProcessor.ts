@@ -1,5 +1,5 @@
 
-import { ImageFormat, ProcessedResult } from '../types';
+import { ImageFormat, ProcessedResult, ShadowConfig } from '../types';
 import { PADDING_RATIO, JPG_QUALITY } from '../constants';
 
 /**
@@ -9,18 +9,21 @@ export async function processImageFile(
   file: File,
   formats: ImageFormat[],
   applyShadow: boolean = false,
-  backgroundColor: string = '#FFFFFF'
+  backgroundColor: string = '#FFFFFF',
+  shadowConfig?: ShadowConfig
 ): Promise<ProcessedResult[]> {
   const image = await loadImage(file);
   const results: ProcessedResult[] = [];
 
-  for (const format of formats) {
-    const blob = await renderToCanvas(image, format, applyShadow, backgroundColor);
-    const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
+  const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
+  
+  for (let i = 0; i < formats.length; i++) {
+    const format = formats[i];
+    const blob = await renderToCanvas(image, format, applyShadow, backgroundColor, shadowConfig);
     results.push({
       formatId: format.id,
       blob,
-      fileName: `${baseName}_${format.width}x${format.height}.jpg`
+      fileName: `${baseName}.${i + 1}.jpg`
     });
   }
 
@@ -49,7 +52,8 @@ function renderToCanvas(
   img: HTMLImageElement, 
   format: ImageFormat, 
   applyShadow: boolean, 
-  backgroundColor: string
+  backgroundColor: string,
+  shadowConfig?: ShadowConfig
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
@@ -85,12 +89,22 @@ function renderToCanvas(
     ctx.imageSmoothingQuality = 'high';
 
     // 5. Draw Shadow if enabled
-    if (applyShadow) {
+    if (applyShadow && shadowConfig) {
       ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetX = 10;
-      ctx.shadowOffsetY = -10; // Up is negative
+      
+      // Convert hex to rgba for opacity support
+      let shadowColor = shadowConfig.color;
+      if (shadowColor.startsWith('#')) {
+        const r = parseInt(shadowColor.slice(1, 3), 16);
+        const g = parseInt(shadowColor.slice(3, 5), 16);
+        const b = parseInt(shadowColor.slice(5, 7), 16);
+        shadowColor = `rgba(${r}, ${g}, ${b}, ${shadowConfig.opacity})`;
+      }
+
+      ctx.shadowColor = shadowColor;
+      ctx.shadowBlur = shadowConfig.blur;
+      ctx.shadowOffsetX = shadowConfig.offsetX;
+      ctx.shadowOffsetY = shadowConfig.offsetY;
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       ctx.restore();
     } else {

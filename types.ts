@@ -1,4 +1,12 @@
 
+export interface ShadowConfig {
+  blur: number;
+  offsetX: number;
+  offsetY: number;
+  opacity: number;
+  color: string;
+}
+
 export interface ImageFormat {
   id: string;
   width: number;
